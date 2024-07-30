@@ -1,0 +1,179 @@
+#include <iostream>
+#include <cmath>
+#include <iomanip>
+#include "locale.h"
+#include <deque>
+
+using namespace std;
+
+double func(double x) {
+    return log(x) + 10 * sin(0.5 * x);//меняем функцию-чтобы она была квазивыпуклой
+}
+
+//поиск третьей точки
+double third(double x, double y, double h, int i = 2) {
+
+    double z = 0;
+    if (func(x) > func(y)) {
+        do {                  //Если f(x0 + h) <f(x0)  xi=x0+h*2^(i-1)
+            z = x + i * h;
+            i++;
+        } while (func(z) <= func(y) && (func(z) - func(y)) < 0);// Если  f2> f1  и delta- + delta+ >0 ищем вершину параболы
+        if (func(z) == func(x) || func(z) == func(y) || func(x) == func(y)) third(x, y, h, i++);
+    }
+    else if (func(x) < func(y)) { // Если f(x0 + h) > f(x0) ищем слева xi=x0-h*2^(i-1)
+        do {
+            z = x - i * h;
+            i++;
+        } while (func(z) <= func(x) && (func(z) - func(y)) < 0); // Если  f2> f1 ищем вершину параболы
+        if (func(z) == func(x) || func(z) == func(y) || func(x) == func(y)) third(x, y, h, i++);
+    }
+    return z;
+}
+
+//поиск начальной тройки
+deque <double> base(deque <double> x, double h, int i = 1) {
+    if (func(x[0] + i * h) < func(x[0]) && x[0]) { //Если f(x0 + h) < f(x0)  xi=x0+h*2^(i-1)
+        x[1] = x[0] + i * h;
+        x[2] = third(x[0], x[1], h);
+    }
+    else if (func(x[0]) < func(x[0] + i * h)) { // Если f(x0 + h) > f(x0) ищем слева xi=x0-h*2^(i-1)
+        x[2] = x[0] + i * h; // переобзначаем 
+        x[1] = x[0];
+        x[0] = third(x[1], x[2], h);
+    }
+    else {
+        i++;
+        base(x, h, i);
+    }
+    return x;
+}
+
+// Вычисление х4 - вершины параболы:
+double L_(deque <double> x, deque <double> f) {
+    double a0, a1, a2;
+    a0 = f[0];
+    a1 = (f[1] - f[0]) / (x[1] - x[0]);
+    a2 = (f[2] - a0 - a1 * (x[2] - x[0])) / ((x[2] - x[0]) * (x[2] - x[1]));
+    return (x[0] + x[1]) / 2 - a1 / (2 * a2);
+}
+
+double sgn(double x) {
+    if (x > 0) return 1;
+    if (x < 0) return -1;
+    return 0;
+}
+
+//сортировка 4х переменных
+deque <double> sorted_f(deque <double> f) {
+    double temp;
+    for (int i = 0; i < 4 - 1; i++) {
+        for (int j = 0; j < 3 - i; j++) {
+            if (f[j] > f[j + 1]) {
+                // меняем элементы местами
+                temp = f[j];
+                f[j] = f[j + 1];
+                f[j + 1] = temp;
+            }
+        }
+    }
+    return f;
+}
+deque <double> sorted_x(deque <double> f, deque <double> x) {
+    double temp, count;
+    for (int i = 0; i < 4 - 1; i++) {
+        for (int j = 0; j < 3 - i; j++) {
+            if (f[j] > f[j + 1]) {
+                // меняем элементы местами
+                temp = f[j];
+                count = x[j];
+                f[j] = f[j + 1];
+                x[j] = x[j + 1];
+                f[j + 1] = temp;
+                x[j + 1] = count;
+            }
+        }
+    }
+    return x;
+}
+
+int main() {
+    setlocale(LC_ALL, "Russian");
+    int i = 0; //счетчик итераций
+    double can; //промежуточная переменная
+    double a = 10, b = 12; //ограничения
+
+    int accuracy;
+    cout << "Введите порядок точности: ";
+    cin >> accuracy;
+    double eps = pow(10, -accuracy);
+
+    cout << "Введите произвольную начальную точку от " << a << " до " << b << ":\t";
+    deque<double> x = deque<double>(4);
+    double x_min; //точка минимума
+    cin >> x[0];
+   // if (x[0] > b || x[0] < a) return 1; // посмотреть как выходит на границы отрезка
+    deque<double> f = deque<double>(4);
+
+    int count_x = 3; //количество переменных на данный момент
+    double h = 0.0001; //2h <= a + b - шаг
+
+    x = base(x, h);
+
+    do {
+        cout << fixed << setprecision(accuracy);
+        i++;
+        //        cout << "\t\tИтерация " << i << " :\n";
+        // избавление от 4 точки
+        if (count_x == 4) {
+            if (sgn(x[1] - x[0]) == sgn(x[2] - x[0]) && sgn(x[1] - x[0]) == -sgn(x[3] - x[0])) {
+                x[2] = x[3];
+                can = x[1];
+                x[1] = x[0];
+                x[0] = can;
+            }
+            else if (sgn(x[1] - x[0]) == -sgn(x[2] - x[0]) && sgn(x[1] - x[0]) == sgn(x[3] - x[0])) {
+                can = x[1]; 
+                x[1] = x[0];
+                x[0] = can;
+            }
+            count_x = 3;
+        }
+
+        f[0] = func(x[0]);
+        f[1] = func(x[1]);
+        f[2] = func(x[2]);
+        //            cout << "\tВыпуклая тройка:\n" << "x1 = " << x[0] << ", x2 = " << x[1] << ", x3 = " << x[2] << endl;
+        //            cout << "\tf(x):\n" << "f1 = " << f[0] << ", f2 = " << f[1] << ", f3 = " << f[2] << endl;
+
+        x[3] = L_(x, f);
+        f[3] = func(x[3]);
+        count_x++;
+
+        x = sorted_x(f, x);
+        f = sorted_f(f);
+
+        //            cout << "\tВыпуклая тройка + координата вершины:\n" << "x1 = " << x[0] << ", x2 = " << x[1] << ", x3 = " << x[2] << ", x4 = " << x[3] << endl;
+        //            cout << "\tf(x):\n" << "f1 = " << f[0] << ", f2 = " << f[1] << ", f3 = " << f[2] << ", f4 = " << f[3] << endl << endl;
+        if (i == 500) {
+            if (func(a) > func(b)) {
+                cout << "x_min = " << b << endl;
+                return 0;
+            }
+            else if (func(a) < func(b)) {
+                cout << "x_min = " << a << endl;
+                return 0;
+            }
+        }
+    } while (f[1] - f[0] >= eps); //условие выхода
+
+    x_min = x[0];
+    cout << "Номер итерации: " << i << endl;
+    cout << "x1 = " << x[0] << "\tx2 = " << x[1] << "\tx3 = " << x[2] << "\tx4 = " << x[3] << endl;
+    cout << "f1 = " << f[0] << "\tf2 = " << f[1] << "\tf3 = " << f[2] << "\tf4 = " << f[3] << endl;
+    cout << "x_min = " << x_min << endl;
+    cout << " fx_min= " << func(x_min) << endl;
+   
+    return 0;
+}
+

@@ -1,0 +1,111 @@
+#include <iostream>
+#include<math.h>
+using namespace std;
+
+#define EPS 0.000001
+
+double f(double x1, double x2)
+{
+    return x1 * x1 + 3 * x2 * x2 + cos(x1 + x2); //Функция
+}
+
+double F_dx1(double x1, double x2)
+{
+    return 2 * x1 - sin(x1 + x2); //Производная по х1
+}
+
+double F_dx2(double x1, double x2)
+{
+    return  6 * x2 - sin(x1 + x2); //Производная по х2
+}
+
+
+double find_B(double x1, double x2, double h1, double h2) //Поиск В для метода золотого сечения
+{
+    double A = 0, H = 1, B;
+    while (true)
+    {
+        double FA = f(x1 - A * h1, x2 - A * h2);
+        double FH = f(x1 - H * h1, x2 - H * h2);
+        if (FA < FH)
+        {
+            B = H;
+            break;
+        }
+        H = 2 * H;
+        B = H;
+    }
+    return B;
+}
+double res_s(double x1, double x2, double h1, double h2) // Алгоритм минимизации функции одной переменной методом золотого сечения
+{
+    double Lyamda = (1 + sqrt(5)) / 2;
+    double B = find_B(x1, x2, h1, h2), A = 0;
+    double del = (B - A) / (Lyamda * Lyamda);
+    double X = A + del, Y = B - del, FX = f(x1 - X * h1, x2 - X * h2), FY = f(x1 - Y * h1, x2 - Y * h2);
+    while (B - A > 2 * EPS)
+    {
+        if (FX > FY)
+        {
+            A = X;
+            X = Y;
+            FX = FY;
+            Y = A + B - X;
+            FY = f(x1 - Y * h1, x2 - Y * h2);
+        }
+        else
+        {
+            B = Y;
+            Y = X;
+            FY = FX;
+            X = A + B - Y;
+            FX = f(x1 - X * h1, x2 - X * h2);
+
+        }
+    }
+    return (A + B) / 2;
+}
+
+double length_h(double h1, double h2)
+{
+    return sqrt((h1 * h1) + (h2 * h2));
+}
+
+int main()
+{
+    int i = 0;
+    cout << "iteration :" << i << endl;
+    i++;
+    double x1, x2;
+    x1 = 2;
+    x2 = 3;
+    double h1, h2, g1, g2;
+    g1 = F_dx1(x1, x2);
+    g2 = F_dx2(x1, x2);
+    h1 = g1; 
+    h2 = g2;
+    double betta, N, n = length_h(h1, h2);
+    cout << "z = (" << x1 << "," << x2 << ")" << endl << endl;
+    while (n > EPS)
+    {
+
+        cout << "iteration :" << i << endl;
+        double s = res_s(x1, x2, h1, h2);
+        x1 = x1 - s * h1;
+        x2 = x2 - s * h2;
+        g1 = F_dx1(x1, x2);
+        g2 = F_dx2(x1, x2);
+        N = n;
+        n = length_h(g1, g2);
+        betta = (n * n) / (N * N);
+
+        h1 = g1 - betta * h1;
+        h2 = g2 - betta * h2; //сопряженные градиенты
+        i++;
+        cout << "Betta = " << betta << endl;
+        cout << "f(z) = " << f(x1, x2) << endl;
+        cout << "|f'(z)| = " << length_h(h1, h2) << endl;
+        cout << "z = (" << x1 << "," << x2 << ")" << endl << endl;
+    }
+    system("pause");
+}

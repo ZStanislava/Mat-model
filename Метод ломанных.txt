@@ -1,0 +1,105 @@
+#include <iostream>
+#include <math.h>
+#include <vector>
+#include <iomanip>
+#include "locale.h"
+using namespace std;
+
+/*
+    4. log(x) + 0.1 * sin(0.1 * x), x e [10, 12]
+*/
+
+double f(double x) {
+    return log(x) + 0.1 * sin(0.1 * x);
+}
+
+double fl(double x) { // Производная функции
+    return 1 / x + 0.01 * cos(0.1 * x);
+
+}
+
+// Условие Липшица на [x1,x2]
+double g(double x1, double x2, double R) {
+    return f(x2) - R * abs(x1 - x2);
+}
+
+// Поиск R с помощью метода пассивного поиска (на основе свойства 2) как максимум производной функции на отрезке
+double r(double a, double b)
+{
+    double r_max = abs(fl(a));
+    double eps = abs(a - b) / 1000;
+    for (double i = (a + eps); i <= b; i += eps)
+    {
+        if (abs(fl(i)) > r_max) {
+            r_max = abs(fl(i));
+        }
+    }
+    return r_max;
+}
+
+int main()
+{
+    setlocale(LC_ALL, "Russian");
+    cout << "Введите эпсилон:" << endl;
+    double epsilon;
+    cin >> epsilon;
+
+    double a = 10;
+    double b = 12;
+
+    double R = r(a, b);
+
+    vector<double> X;
+    X.insert(X.end(), a); // x[0] вставить новый элемент в конец вектора
+    X.insert(X.end(), b); // x[1]
+
+    vector<double> M;
+    int n = 0;
+    M.insert(M.end(), g(a, b, R)); // M[0]
+    n++; // n = 1
+
+    double x = (a + b) / 2 + ((f(a) - f(b)) / (2 * R));
+    double m = (a - b) * (R / 2) + (f(a) + f(b)) / 2;
+    X.insert(X.end(), (a + b) / 2 + ((f(a) - f(b)) / (2 * R))); // x[2] (Первая координата точки B)
+    M.insert(M.end(), m); // M[1] (Вторая координата точки B)
+    n++; // n = 2
+
+    // Шаг 2
+    double x_eps;
+    double delta;
+
+    if (f(X[2]) - m < epsilon)
+    {
+        x_eps = X[2];
+    }
+    else
+    {
+        while (f(x) - m > epsilon) // Условие выхода из цикла 
+        {
+            delta = (f(x) - m) / (2 * R);
+            X.insert(X.end(), x - delta); // x[3] (Первая координата точки E)
+            X.insert(X.end(), x + delta); // M[2] (Первая координата точки F)
+            M.insert(M.end(), (f(x) + m) / 2); // x[4] (Вторая координата точки E)
+            M.insert(M.end(), (f(x) + m) / 2); // M[3] (Вторая координата точки F)
+
+            // Шаг 3
+            // Нахожу k mk=min mi минимимзируем функции Мn(x)-выбираем наименьшее из m2,..,m(2n+1)
+            int k = 2;
+            for (int i = 2; i <= n + 1; i++)
+            {
+                if (M[i] < M[k]) { k = i; }
+            }
+
+            m = M[k];  //m=mk
+            x_eps = X[k + 1]; //x=xk -индексация от 0
+            X.erase(X.begin() + k + 1); // Убираю минимальную точку
+            M.erase(M.begin() + k); // Убираю минимальную точку
+            x = x_eps;
+
+            cout << "Шаг: " << n << ", x = " << x << ", f(x) =  " << fixed << setprecision(log10(1 / epsilon)) << f(x) << ", m = " << m << ", delta = " << delta << ", f(x) - m = " << f(x) - m << endl;
+            n++;
+        }
+        x_eps = x;
+    }
+    cout << "x_eps = " << x_eps << "; f(x_eps) = " << f(x_eps) << "; R = " << R << endl;
+}
